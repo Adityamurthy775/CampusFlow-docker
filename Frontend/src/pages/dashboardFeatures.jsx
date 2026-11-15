@@ -74,8 +74,9 @@ export default function DashboardFeatures({ active, role, user, onNotice }) {
   const [detail, setDetail] = useState(null);
   const set = (key) => (event) => setForm((current) => ({ ...current, [key]: event.target.value }));
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (silent = false) => {
+    // silent refresh keeps the section mounted (post-submit); only initial load shows the loading state
+    if (!silent) setLoading(true);
     setError("");
     try {
       let result = {};
@@ -152,7 +153,7 @@ export default function DashboardFeatures({ active, role, user, onNotice }) {
       else await (method === "PATCH" ? api.patch(path, body) : api.post(path, body));
       setForm({});
       setFile(null);
-      await load();
+      await load(true);
       onNotice(success);
     } catch (err) {
       setError(err.message);
@@ -163,7 +164,7 @@ export default function DashboardFeatures({ active, role, user, onNotice }) {
   }
 
   if (loading) return <section className="portal-card portal-workspace-state">Loading {sectionNames[active]}…</section>;
-  if (error && !Object.keys(data).length) return <section className="portal-card portal-workspace-state error"><strong>Could not load this feature.</strong><span>{error}</span><button onClick={load}>Retry</button></section>;
+  if (error && !Object.keys(data).length) return <section className="portal-card portal-workspace-state error"><strong>Could not load this feature.</strong><span>{error}</span><button onClick={() => load()}>Retry</button></section>;
 
   const myId = user._id || user.id;
   const isFaculty = role === "teacher" || role === "faculty";
