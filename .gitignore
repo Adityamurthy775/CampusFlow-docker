@@ -90,6 +90,12 @@ patch-auth.js
 .serena/
 todo.md
 handover.md
+opencode.jsonc
+
+# ==========================================
+# Scratch API request files (local testing only)
+# ==========================================
+Backend/req/
 
 # ==========================================
 # Frontend assets & experimental components

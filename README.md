@@ -10,6 +10,16 @@
 - npm
 - MongoDB running locally, or a MongoDB connection string
 
+### Alternative: Run with Docker Compose
+
+From the repository root, run this instead of the backend startup steps below:
+
+```bash
+docker compose up --build
+```
+
+This starts the API and MongoDB. The API connects to the `db` service, and MongoDB data is saved in a named volume.
+
 ### 1. Start the backend
 
 ```bash

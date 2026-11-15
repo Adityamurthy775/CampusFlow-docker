@@ -1,7 +1,6 @@
-import "dotenv/config";
 import exp from 'express'
 import cookieParser from 'cookie-parser';
-import { connect } from "mongoose";
+import { connectToDatabase, getDatabaseStatus, requireDatabase } from "./database/database.js";
 import { userapp } from './Apis/userapi.js';
 import { studentapp } from './Apis/studentapi.js';
 import { facultyapp } from './Apis/faculty.js';
@@ -23,8 +22,6 @@ import { rateLimit } from './middleware/rateLimiter.js';
 
 let app = exp();
 let port = Number(process.env.PORT) || 4000;
-let databaseReady = false;
-let databaseError = null;
 
 // Middleware: Parse cookies (required for verifyToken to read req.cookies.token)
 app.use(cookieParser());
@@ -53,19 +50,8 @@ app.use((req, res, next) => {
 // Middleware: Rate limiting (300 requests per minute per IP)
 app.use(rateLimit);
 
-// Keep the HTTP service available while Atlas is reconnecting, but fail data
-// requests quickly with a useful readiness response instead of hanging them.
-app.use((req, res, next) => {
-  if (req.path === "/" || req.path === "/health" || req.method === "OPTIONS") return next();
-  if (!databaseReady) {
-    return res.status(503).json({
-      message: "CampusFlow database is not ready",
-      code: "DATABASE_UNAVAILABLE",
-      detail: databaseError || "The server is still connecting to MongoDB.",
-    });
-  }
-  next();
-});
+// Keep the HTTP service available while MongoDB is reconnecting.
+app.use(requireDatabase);
 
 // API route mounting
 app.use("/user-api", userapp);
@@ -92,36 +78,18 @@ app.get("/", (req, res) => {
 });
 
 app.get("/health", (req, res) => {
-  res.status(databaseReady ? 200 : 503).json({
-    status: databaseReady ? "ok" : "degraded",
-    database: databaseReady ? "connected" : "disconnected",
-    ...(databaseError ? { detail: databaseError } : {}),
+  const { ready, error } = getDatabaseStatus();
+  res.status(ready ? 200 : 503).json({
+    status: ready ? "ok" : "degraded",
+    database: ready ? "connected" : "disconnected",
+    ...(error ? { detail: error } : {}),
   });
 });
-
-// Connection to the database
-async function connection() {
-  try {
-    // Atlas SRV DNS can be blocked by some hosting DNS resolvers. Prefer the
-    // optional direct replica-set URI when supplied, while keeping MONGO_URI
-    // as the normal/default configuration.
-    const mongoUri = process.env.MONGO_DIRECT_URI || process.env.MONGO_URI || "mongodb://localhost:27017/campusflow";
-    await connect(mongoUri, { serverSelectionTimeoutMS: 10000, connectTimeoutMS: 10000 });
-    databaseReady = true;
-    databaseError = null;
-    console.log("Connection to MongoDB is successful");
-  } catch (error) {
-    databaseReady = false;
-    databaseError = error.message;
-    console.error("Error connecting to the Database:", error.message);
-    setTimeout(connection, 10000);
-  }
-}
 
 // Start HTTP immediately so the frontend can distinguish a live API from a
 // database outage, then keep trying to establish the cluster connection.
 app.listen(port, () => console.log(`CampusFlow server is running on port ${port}`));
-connection();
+connectToDatabase();
 
 // Handle invalid path (404 for unmatched routes)
 app.use((req, res) => {

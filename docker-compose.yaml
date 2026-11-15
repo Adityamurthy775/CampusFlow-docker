@@ -1,0 +1,25 @@
+services:
+ frontend:
+    build: ./Frontend
+    env_file:
+      - ./Frontend/.env.local
+    volumes:
+      - ./Frontend:/app
+      - /app/node_modules
+    ports:
+      - 5173:5173
+    networks:
+      - mern
+    depends_on:
+      - backend
+ backend:
+    build: ./Backend
+    env_file:
+      - ./Backend/.env
+    ports:
+      - 4000:4000
+    networks:
+      - mern
+networks:
+  mern:
+    driver: bridge
