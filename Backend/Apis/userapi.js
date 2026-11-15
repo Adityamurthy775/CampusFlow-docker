@@ -47,6 +47,10 @@ userapp.post("/register",async(req,res)=>{
   data.email=String(data.email).trim().toLowerCase();
   data.id=String(data.id).trim();
   data.studentid=data.id;
+  // branch is matched case-sensitively against seeded cohort data; normalize so "cse-dsa" == "CSE-DSA"
+  if(data.branch!==undefined && data.branch!==null && String(data.branch).trim()!==""){
+    data.branch=String(data.branch).trim().toUpperCase();
+  }
   const conflicts=[];
   if(await usermodel.exists({email:data.email})) conflicts.push("email");
   if(await usermodel.exists({$or:[{id:data.id},{studentid:data.id}]})) conflicts.push("id");
@@ -56,8 +60,15 @@ userapp.post("/register",async(req,res)=>{
   data.password=await bcryptjs.hash(data.password,12);
   try{
     const result=await new usermodel(data).save();
+    // registration must hand out a session like login does, or the new user's API calls are all 401
+    const token=jwt.sign(
+      {userId:result._id.toString(),email:result.email,username:result.username,role:result.role},
+      jwtSecret,
+      {expiresIn:"1d"}
+    );
     res.status(201).json({
       message:"User registered successfully",
+      token,
       payload:{
         id:result._id,
         username:result.username,

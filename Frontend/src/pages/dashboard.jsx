@@ -179,7 +179,7 @@ export default function Dashboard() {
   const statCountClass = view.stats.length === 5 ? "five" : "";
 
   useEffect(() => {
-    if (role !== "student" || user?.branch !== "CSE-DSA" || Number(user?.year) !== 3 || Number(user?.semester) !== 1) {
+    if (role !== "student" || String(user?.branch || "CSE-DSA").trim().toUpperCase() !== "CSE-DSA" || Number(user?.year) !== 3 || Number(user?.semester) !== 1) {
       setCurriculum(null);
       return undefined;
     }
@@ -191,7 +191,7 @@ export default function Dashboard() {
   useEffect(() => {
     if (!user) return undefined;
     let current = true;
-    const query = new URLSearchParams({ branch: user.branch || "CSE-DSA", year: user.year || 3, semester: user.semester || 1 });
+    const query = new URLSearchParams({ branch: String(user.branch || "CSE-DSA").trim().toUpperCase(), year: user.year || 3, semester: user.semester || 1 });
     Promise.all([
       api.get(`/timetable-api/current?${query}`).catch(() => ({ payload: null })),
       api.get("/subject-api/all").catch(() => ({ payload: [] })),

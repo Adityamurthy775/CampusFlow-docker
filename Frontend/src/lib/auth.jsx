@@ -30,7 +30,13 @@ export function AuthProvider({ children }) {
     if (data.token) {
       localStorage.setItem("token", data.token);
     }
-    setUser(data.payload || data.user);
+    // fetch the canonical user now that we hold a token, same as login does
+    try {
+      const authenticated = await api.get("/user-api/check-auth");
+      setUser(authenticated.payload || authenticated.user || data.payload || data.user);
+    } catch {
+      setUser(data.payload || data.user);
+    }
   }
   async function logout() {
     localStorage.removeItem("token");

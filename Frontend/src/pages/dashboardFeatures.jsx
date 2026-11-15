@@ -84,14 +84,15 @@ export default function DashboardFeatures({ active, role, user, onNotice }) {
         result = { subjects: subjects.payload || [], curriculum: curriculum.payload };
       }
       if (active === "schedule") {
-        const branch = encodeURIComponent(user.branch || "CSE-DSA");
+        const branch = encodeURIComponent(String(user.branch || "CSE-DSA").trim().toUpperCase());
         const year = encodeURIComponent(user.year || 3);
         const semester = encodeURIComponent(user.semester || 1);
-        const schedule = await api.get(`/timetable-api/current?branch=${branch}&year=${year}&semester=${semester}`);
+        // A cohort without a published timetable is an empty state, not an error
+        const schedule = await api.get(`/timetable-api/current?branch=${branch}&year=${year}&semester=${semester}`).catch(() => ({ payload: null }));
         result = { schedule: schedule.payload };
       }
       if (active === "assignments") {
-        const query = new URLSearchParams({ branch: user.branch || "CSE-DSA", year: user.year || 3, semester: user.semester || 1 });
+        const query = new URLSearchParams({ branch: String(user.branch || "CSE-DSA").trim().toUpperCase(), year: user.year || 3, semester: user.semester || 1 });
         const [assignments, submissions, subjects] = await Promise.all([api.get(`/assignment-api/all?${query}`), api.get("/submission-api/all"), api.get("/subject-api/all")]);
         result = { assignments: assignments.payload || [], submissions: submissions.payload || [], subjects: subjects.payload || [] };
       }
@@ -176,6 +177,7 @@ export default function DashboardFeatures({ active, role, user, onNotice }) {
 
   if (active === "schedule") {
     const days = data.schedule?.days || [];
+    if (!days.length) return <div className="portal-workspace"><section className="portal-card"><div className="portal-section-heading"><div><h2>Weekly Schedule</h2></div></div><Empty>No timetable has been published for your branch and semester yet.</Empty></section></div>;
     return <div className="portal-workspace"><section className="portal-card"><div className="portal-section-heading"><div><h2>Weekly Schedule</h2><p>{data.schedule?.branch} · Year {data.schedule?.year} · Semester {data.schedule?.semester}</p></div></div><div className="portal-schedule-days">{days.map((day) => <article key={day.day}><h3>{day.day}</h3>{day.periods.map((period, index) => <div key={`${period.subjectinfo?.code}-${index}`}><time>{timeLabel(period.start)} – {timeLabel(period.end)}</time><strong>{period.subjectinfo?.name || period.subjectName}</strong><small>{period.roominfo?.code || period.roomCode || "Room TBD"} · {period.faculty?.[0]?.designation || "Faculty TBD"}</small></div>)}</article>)}</div></section></div>;
   }
 
